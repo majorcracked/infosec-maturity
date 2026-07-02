@@ -36,7 +36,7 @@ export default function RootLayout({
             <div className="flex items-center gap-4">
               <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Ollama: <code className="text-indigo-300">gemma4:e2b</code>
+                Ollama: <code className="text-indigo-300">{process.env.OLLAMA_MODEL || "qwen2.5:7b"}</code>
               </span>
             </div>
           </div>

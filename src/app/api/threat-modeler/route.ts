@@ -24,14 +24,15 @@ Each risk object in the JSON array must contain exactly these keys:
 Return ONLY a raw JSON array. No explanations, no markdown formatting blocks, no extra text.`;
 
     try {
-      const ollamaHost = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+      const ollamaHost = (process.env.OLLAMA_HOST || "http://127.0.0.1:11434").replace(/\/$/, "");
       const ollamaResponse = await fetch(`${ollamaHost}/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({
-          model: "gemma4:e2b",
+          model: process.env.OLLAMA_MODEL || "qwen2.5:7b",
           prompt: `Tech Stack: "${techStackDescription}"`,
           system: systemPrompt,
           format: "json",

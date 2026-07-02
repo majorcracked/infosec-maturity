@@ -21,14 +21,15 @@ Do not include any extra text, markdown code blocks, or explanation outside the 
     const promptPayload = `Control Question: "${questionText}"\n\nUploaded Document Evidence:\n"""\n${documentText}\n"""`;
 
     try {
-      const ollamaHost = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+      const ollamaHost = (process.env.OLLAMA_HOST || "http://127.0.0.1:11434").replace(/\/$/, "");
       const ollamaResponse = await fetch(`${ollamaHost}/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({
-          model: "gemma4:e2b",
+          model: process.env.OLLAMA_MODEL || "qwen2.5:7b",
           prompt: promptPayload,
           system: systemPrompt,
           format: "json",
