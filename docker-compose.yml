@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: aegisflow-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "1212"
+      POSTGRES_DB: AegisFlow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aegisflow-app-prod
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # Access db container on its internal network name
+      DATABASE_URL: "postgresql://postgres:1212@db:5432/AegisFlow?schema=public"
+      # Gateway to call host machine Ollama engine
+      OLLAMA_HOST: "http://host.docker.internal:11434"
+      PORT: 3000
+    depends_on:
+      - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_prod_data:

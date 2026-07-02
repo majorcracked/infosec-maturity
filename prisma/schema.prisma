@@ -1,0 +1,154 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated-client"
+}
+
+model Organization {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  assessments Assessment[]
+}
+
+model Assessment {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  score          Float        @default(0.0)
+  status         String       @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  answers        Answer[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Question {
+  id              String           @id @default(uuid())
+  domain          String           // Access Control, Data Security, Incident Response
+  text            String
+  requiresDoc     Boolean          @default(false)
+  answers         Answer[]
+  mappings        Mapping[]
+  remediationTask RemediationTask?
+  auditComments   AuditComment[]
+}
+
+model Answer {
+  id           String     @id @default(uuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  response     String     // YES, NO, NA
+  evidenceUrl  String?    // Path or name of the uploaded document
+  evidenceText String?    // Extracted raw text stored for RAG keyword searches
+  aiVerified   Boolean?   // true, false, null
+  aiReasoning  String?    // Explanatory text from AI validation
+  verifiedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assessmentId, questionId])
+}
+
+model Framework {
+  id          String    @id @default(uuid())
+  name        String    @unique // SOC 2, ISO 27001, HIPAA
+  description String
+  mappings    Mapping[]
+}
+
+model Mapping {
+  id          String    @id @default(uuid())
+  questionId  String
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  frameworkId String
+  framework   Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  clause      String    // e.g. "CC6.1", "A.9.4.2"
+  description String
+}
+
+model PolicyDocument {
+  id        String   @id @default(uuid())
+  title     String   @unique
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RemediationTask {
+  id         String    @id @default(uuid())
+  questionId String    @unique
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  assignedTo String?
+  dueDate    DateTime?
+  status     String    @default("OPEN") // OPEN, IN_PROGRESS, IN_REVIEW, COMPLETED
+  priority   String    @default("MEDIUM")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model RiskRegister {
+  id          String   @id @default(uuid())
+  title       String   @unique
+  threat      String   @db.Text
+  likelihood  Int      // 1-5
+  impact      Int      // 1-5
+  mitigation  String   @db.Text
+  status      String   @default("UNMITIGATED") // UNMITIGATED, MITIGATED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SecurityAlert {
+  id          String   @id @default(uuid())
+  title       String   @unique
+  description String   @db.Text
+  source      String   // AWS, GITHUB, OKTA
+  severity    String   // HIGH, MEDIUM, LOW
+  status      String   @default("OPEN") // OPEN, CONVERTED, IGNORED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmployeeAttestation {
+  id            String    @id @default(uuid())
+  employeeName  String
+  employeeEmail String
+  policyTitle   String
+  status        String    @default("PENDING") // PENDING, SIGNED
+  signedAt      DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+model ConnectorScanLog {
+  id            String   @id @default(uuid())
+  connectorType String
+  status        String   // SUCCESS, FAILED
+  details       String   @db.Text
+  createdAt     DateTime @default(now())
+}
+
+model Vendor {
+  id               String   @id @default(uuid())
+  name             String   @unique
+  securityTier     String   // CRITICAL, HIGH, MEDIUM, LOW
+  complianceStatus String   @default("PENDING") // VERIFIED, PENDING, FAILED
+  contactEmail     String
+  score            Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model AuditComment {
+  id         String   @id @default(uuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  author     String   // e.g. "Auditor", "CISO"
+  text       String   @db.Text
+  createdAt  DateTime @default(now())
+}
