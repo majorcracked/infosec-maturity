@@ -54,24 +54,68 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { vendorId, score } = await req.json();
+    const { vendorId, score, vendorDetails } = await req.json();
 
-    if (!vendorId || score === undefined) {
+    if (!vendorId) {
       return NextResponse.json(
-        { error: "Missing vendorId or score in request body" },
+        { error: "Missing vendorId in request body" },
         { status: 400 }
       );
     }
 
-    const nScore = Number(score);
+    let finalScore = score !== undefined ? Number(score) : 0;
+
+    if (vendorDetails) {
+      const systemPrompt = `You are a Third-Party Vendor Risk Auditor.
+Analyze the vendor's security overview and determine a security rating score (integer between 0 and 100) based on their compliance, controls, encryption, and testing standards.
+Your response must be a JSON object with exactly this format:
+{
+  "score": 85
+}
+Do not return any markdown tags or text, just the raw JSON.`;
+
+      try {
+        const ollamaHost = (process.env.OLLAMA_HOST || "http://127.0.0.1:11434").replace(/\/$/, "");
+        const ollamaResponse = await fetch(`${ollamaHost}/api/generate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+          },
+          body: JSON.stringify({
+            model: process.env.OLLAMA_MODEL || "qwen2.5:7b",
+            prompt: `Vendor details: "${vendorDetails}"`,
+            system: systemPrompt,
+            format: "json",
+            stream: false,
+          }),
+        });
+
+        if (ollamaResponse.ok) {
+          const rawResult = await ollamaResponse.json();
+          const parsed = JSON.parse(rawResult.response.trim());
+          if (parsed && typeof parsed.score === "number") {
+            finalScore = parsed.score;
+          }
+        }
+      } catch (err: any) {
+        console.warn("Ollama vendor risk audit failed, falling back:", err.message);
+        // Fallback scoring based on keywords
+        const detLower = vendorDetails.toLowerCase();
+        if (detLower.includes("soc 2") && detLower.includes("encryption")) finalScore = 90;
+        else if (detLower.includes("soc 2") || detLower.includes("encryption")) finalScore = 75;
+        else finalScore = 45;
+      }
+    }
+
     let complianceStatus = "PENDING";
-    if (nScore >= 80) complianceStatus = "VERIFIED";
-    else if (nScore < 50) complianceStatus = "FAILED";
+    if (finalScore >= 80) complianceStatus = "VERIFIED";
+    else if (finalScore < 50) complianceStatus = "FAILED";
 
     const vendor = await prisma.vendor.update({
       where: { id: vendorId },
       data: {
-        score: nScore,
+        score: finalScore,
         complianceStatus,
       },
     });

@@ -22,13 +22,15 @@ Provide a complete template in Markdown, including:
 Do not include any chat introductory or concluding remarks. Start directly with the title.`;
 
     try {
-      const ollamaResponse = await fetch("http://127.0.0.1:11434/api/generate", {
+      const ollamaHost = (process.env.OLLAMA_HOST || "http://127.0.0.1:11434").replace(/\/$/, "");
+      const ollamaResponse = await fetch(`${ollamaHost}/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({
-          model: "gemma4:e2b",
+          model: process.env.OLLAMA_MODEL || "qwen2.5:7b",
           prompt: promptPayload,
           system: "You are a Principal Security compliance manager. Write complete, ready-to-use InfoSec policies in Markdown.",
           stream: false,

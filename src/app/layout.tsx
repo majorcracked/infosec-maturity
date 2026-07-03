@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className="h-full antialiased dark"
+      className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col bg-[#050811] text-slate-100 selection:bg-indigo-500/30 selection:text-indigo-200">
         <header className="border-b border-white/5 bg-[#050811]/40 backdrop-blur-md sticky top-0 z-50">

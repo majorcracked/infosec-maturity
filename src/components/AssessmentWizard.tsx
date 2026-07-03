@@ -268,6 +268,11 @@ export default function AssessmentWizard({
   const [creatingVendor, setCreatingVendor] = useState<boolean>(false);
   const [testingVendorId, setTestingVendorId] = useState<string | null>(null);
 
+  // AI Vendor Risk Auditor States
+  const [selectedVendorForAudit, setSelectedVendorForAudit] = useState<string>("");
+  const [vendorDetailsInput, setVendorDetailsInput] = useState<string>("");
+  const [auditingVendor, setAuditingVendor] = useState<boolean>(false);
+
   const [attestations, setAttestations] = useState<AttestationDto[]>(initialAttestations);
   const [newAttestName, setNewAttestName] = useState<string>("");
   const [newAttestEmail, setNewAttestEmail] = useState<string>("");
@@ -921,6 +926,39 @@ export default function AssessmentWizard({
       console.error(err);
     } finally {
       setCreatingVendor(false);
+    }
+  };
+
+  // AI Vendor Risk Assessment scan
+  const handleAIVendorAudit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVendorForAudit || !vendorDetailsInput) return;
+    setAuditingVendor(true);
+    try {
+      const res = await fetch("/api/vendors", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId: selectedVendorForAudit,
+          vendorDetails: vendorDetailsInput,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setVendors((prev) =>
+          prev.map((v) => (v.id === selectedVendorForAudit ? data.vendor : v))
+        );
+        setVendorDetailsInput("");
+        alert(`AI Risk Scan Completed for ${data.vendor.name}! Score: ${data.vendor.score}/100. Status: ${data.vendor.complianceStatus}`);
+      } else {
+        alert("Failed to complete AI Risk Scan.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error executing AI Risk Scan.");
+    } finally {
+      setAuditingVendor(false);
     }
   };
 
@@ -2266,51 +2304,99 @@ export default function AssessmentWizard({
                 </p>
               </div>
 
-              {/* Add Vendor Form */}
-              <div className="glass-panel rounded-3xl p-6 flex flex-col gap-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Add New Partner Vendor Registry</span>
-                <form onSubmit={handleCreateVendor} className="grid grid-cols-3 gap-4 text-xs items-end">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Vendor Name</label>
-                    <input
-                      type="text"
-                      value={newVendorName}
-                      onChange={(e) => setNewVendorName(e.target.value)}
-                      placeholder="E.g., Stripe, Salesforce"
-                      className="bg-white/5 border border-white/5 rounded-lg p-2 focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Security Contact Email</label>
-                    <input
-                      type="email"
-                      value={newVendorEmail}
-                      onChange={(e) => setNewVendorEmail(e.target.value)}
-                      placeholder="E.g., trust@stripe.com"
-                      className="bg-white/5 border border-white/5 rounded-lg p-2 focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Risk Tier Priority</label>
-                    <select
-                      value={newVendorTier}
-                      onChange={(e) => setNewVendorTier(e.target.value)}
-                      className="bg-white/5 border border-white/5 rounded-lg p-2 focus:outline-none cursor-pointer"
+              {/* Vendor Forms Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Add Vendor Form */}
+                <div className="glass-panel rounded-3xl p-6 flex flex-col gap-4">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Add New Partner Vendor Registry</span>
+                  <form onSubmit={handleCreateVendor} className="flex flex-col gap-4 text-xs">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Vendor Name</label>
+                      <input
+                        type="text"
+                        value={newVendorName}
+                        onChange={(e) => setNewVendorName(e.target.value)}
+                        placeholder="E.g., Stripe, Salesforce"
+                        className="bg-white/5 border border-white/5 rounded-lg p-2.5 focus:outline-none glass-input"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Security Contact Email</label>
+                      <input
+                        type="email"
+                        value={newVendorEmail}
+                        onChange={(e) => setNewVendorEmail(e.target.value)}
+                        placeholder="E.g., trust@stripe.com"
+                        className="bg-white/5 border border-white/5 rounded-lg p-2.5 focus:outline-none glass-input"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Risk Tier Priority</label>
+                      <select
+                        value={newVendorTier}
+                        onChange={(e) => setNewVendorTier(e.target.value)}
+                        className="bg-white/5 border border-white/5 rounded-lg p-2.5 focus:outline-none cursor-pointer"
+                      >
+                        <option value="CRITICAL">CRITICAL</option>
+                        <option value="HIGH">HIGH</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="LOW">LOW</option>
+                      </select>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={creatingVendor}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-lg mt-2"
                     >
-                      <option value="CRITICAL">CRITICAL</option>
-                      <option value="HIGH">HIGH</option>
-                      <option value="MEDIUM">MEDIUM</option>
-                      <option value="LOW">LOW</option>
-                    </select>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={creatingVendor}
-                    className="col-span-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-lg"
-                  >
-                    <Plus className="w-4 h-4" /> Add Vendor to Directory
-                  </button>
-                </form>
+                      <Plus className="w-4 h-4" /> Add Vendor to Directory
+                    </button>
+                  </form>
+                </div>
+
+                {/* AI Vendor Risk Auditor Form */}
+                <div className="glass-panel rounded-3xl p-6 flex flex-col gap-4">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Run AI Security Posture Scan</span>
+                  <form onSubmit={handleAIVendorAudit} className="flex flex-col gap-4 text-xs">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Select Vendor</label>
+                      <select
+                        value={selectedVendorForAudit}
+                        onChange={(e) => setSelectedVendorForAudit(e.target.value)}
+                        className="bg-white/5 border border-white/5 rounded-lg p-2.5 focus:outline-none cursor-pointer"
+                      >
+                        <option value="">-- Choose registered vendor --</option>
+                        {vendors.map((v) => (
+                          <option key={v.id} value={v.id}>{v.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Vendor Security Details / Tech Stack</label>
+                      <textarea
+                        value={vendorDetailsInput}
+                        onChange={(e) => setVendorDetailsInput(e.target.value)}
+                        placeholder="E.g., Stripe processes credit cards. They have SOC 2 Type II, use AES-256 for data encryption, and enforce employee MFA on all systems."
+                        rows={3}
+                        className="bg-white/5 border border-white/5 rounded-lg p-2.5 focus:outline-none glass-input resize-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={auditingVendor || !selectedVendorForAudit || !vendorDetailsInput}
+                      className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl py-2.5 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-lg mt-4"
+                    >
+                      {auditingVendor ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Analyzing Vendor Posture...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" /> Run AI Security Risk Scan
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
               </div>
 
               {/* Vendors List Table */}
